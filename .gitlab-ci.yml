@@ -1,0 +1,52 @@
+stages:
+  - build
+  - test
+  - integration
+  - deploy
+
+variables:
+  MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
+
+cache:
+  paths:
+    - .m2/repository
+    - target
+
+build-job:
+  stage: build
+  script:
+    - mvn -B -q clean compile
+  artifacts:
+    paths:
+      - target/
+
+unit-tests:
+  stage: test
+  script:
+    - mvn -B -q test
+  artifacts:
+    reports:
+      junit: target/surefire-reports/*.xml
+
+integration-tests:
+  stage: integration
+  script:
+    - mvn -B -q verify -DskipUnitTests=false
+  when: on_success
+
+deploy-staging:
+  stage: deploy
+  script:
+    - chmod +x scripts/deploy.sh
+    - ./scripts/deploy.sh staging
+  only:
+    - develop
+
+blue-green-switch:
+  stage: deploy
+  script:
+    - chmod +x scripts/switch_traffic.sh
+    - ./scripts/switch_traffic.sh blue green
+  only:
+    - main
+  when: manual
